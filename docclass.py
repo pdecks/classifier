@@ -46,7 +46,7 @@ def getwords(doc):
     return dict([(w, 1) for w in words])
 
 
-class Classifier:
+class Classifier(object):
     """Encapsulate what the classifier has learned so far. This allows for
     instantiation of multiple classifiers for different users, groups, or
     queries that can be trained to a particular group's needs."""
@@ -111,7 +111,7 @@ class Classifier:
         return self.cc.keys()
 
 
-    ## TRAIN THE MODEL ##
+    ## TRAINING THE MODEL ##
 
     def train(self, item, cat):
         """Takes an item (e.g., document) and a classification.
@@ -128,7 +128,8 @@ class Classifier:
         self.incc(cat)
 
 
-    ## CALCULATING PROBABILITIES
+    ## CALCULATING PROBABILITIES ##
+
     def fprob(self, f, cat):
         """Returns conditional probability P(A|B) = P(word|classification).
 
@@ -165,9 +166,61 @@ class Classifier:
         return bp
 
 
+# Once you have the probabilities of a document in a category containing a
+# particular word, you need a way to combine the individual word probabilities
+# to get the probability that an entire document belongs in a given category.
+
+# naive bayesian -- "naive" assumes the probabilities being combined are
+# independent of each other. this is a false assumption, so we can't actually
+# use the probability from the naive classifier as the actual probability
+# that a document belongs in that category. BUT we can still compare results
+# for different categories and see which one has the highest probability.
+
+# calculating the entire document probability is a matter of multiplying
+# together all the probabilities of the individual words in that document.
+
+class NaiveBayes(Classifier):
+    """Subclass of Classifier for calculating the entire document probability.
+    """
+
+    def docprob(self, item, cat):
+        """Extracts the features and returns an overall probability of a
+        document being classified as a particular category.
+
+        Returns P(Document | Category)"""
+
+        features = self.getfeatures(item)
+
+        # multiply the probabilities of all the features together
+        p = 1
+        for f in features:
+            p *= self.weightedprob(f, cat, self.fprob)
+        return p
+
+    def prob(self, item, cat):
+        """Calculates P(Category) and returns P(Doc | Cat) * P(Cat).
+
+        Used with Bayes' Theorem to calatulate P(Category | Document)."""
+
+        catprob = self.catcount(cat) / self.totalcount()
+        docprob = self.docprob(item, cat)
+        return docprob * catprob
+
+
+
 ## Test the class using python interactively ##
 # import docclass
 # c1 = docclass.Classifier(docclass.getwords)
 # docclass.sampletrain(c1)
 # c1.fcount('quick', 'good') --> returns 1.0
 # c1.fcount('quick', 'bad') --> returns 1.0
+
+
+# ONCE the Naive Bayes classifier is built, test with the following:
+# reload(docclass) # or import docclass
+# c1 = docclass.NaiveBayes(docclass.getwords)
+# docclass.sampletrain(c1)
+# c1.prob('quick rabbit', 'good')
+# c1.prob('quick rabbit', 'bad')
+## RESULT: based on the training data, the phrase 'quick rabbit' is considered
+## a much better candidate for the good category than the bad
