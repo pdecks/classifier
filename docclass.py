@@ -67,6 +67,9 @@ class Classifier(object):
         # to be classified (ex: getwords)
         self.getfeatures = getfeatures
 
+        # for deciding in which category a new item belongs
+        self.thresholds = {}
+
 
     ## CREATE HELPER METHODS TO INCREMENT AND GET THE COUNTS ##
     # note that .setdefault() will set d[key]=default IF key not already in d
@@ -165,6 +168,42 @@ class Classifier(object):
 
         return bp
 
+    ## CHOOSING A CATEGORY ##
+
+    def setthreshold(self, cat, t=1.0):
+        """Sets a minimum threshold for each category."""
+        self.thresholds[cat] = t
+
+    def getthreshold(self, cat):
+        """Retuurns the threshold for a category."""
+        if cat not in self.thresholds:
+            return 1.0
+        return self.thresholds[cat]
+
+    def classify(self, item, default='unknown'):
+        """Calculates the probability for each category. Determines which one 
+        is the largest and whether it exceeds the next largest by more than
+        its threshold. If none of the categories can accomplish this, the
+        method just returns the default values."""
+
+        probs = {}
+
+        # Find the category with the highest probability
+        max = 0.0
+        for cat in self.categories():
+            probs[cat] = self.prob(item, cat) # note that self.prob on subclass ...
+            if probs[cat] > max:
+                max = probs[cat]
+                best = cat
+
+        # ensure the probability exceeds threshold * next_best
+        for cat in probs:
+            if cat == best:
+                continue
+            if probs[cat] * self.getthreshold(best) > probs[best]:
+                return default
+            return best
+
 
 # Once you have the probabilities of a document in a category containing a
 # particular word, you need a way to combine the individual word probabilities
@@ -208,6 +247,13 @@ class NaiveBayes(Classifier):
 
 
 
+
+
+
+
+
+###### TESTING ###############################################################
+
 ## Test the class using python interactively ##
 # import docclass
 # c1 = docclass.Classifier(docclass.getwords)
@@ -224,3 +270,16 @@ class NaiveBayes(Classifier):
 # c1.prob('quick rabbit', 'bad')
 ## RESULT: based on the training data, the phrase 'quick rabbit' is considered
 ## a much better candidate for the good category than the bad
+
+
+# ONCE the thresholds have been added:
+# reload(docclass)
+# c1 = docclass.NaiveBayes(docclass.getwords)
+# docclass.sampletrain(c1)
+# c1.classify('quick rabbit')
+# c1.classify('quick money')
+# c1.setthreshold('bad', 3.0)
+# c1.classify('quick money')
+# for i in range(10): docclass.sampletrain(c1)
+# c1,classify('quick money')
+
