@@ -52,6 +52,7 @@ class Classifier(object):
     queries that can be trained to a particular group's needs."""
 
     def __init__(self, getfeatures, filename=None):
+        # Classifier.__init__(self, getfeatures) ## WHY DO WE NEED THIS?!?!?!
         # Counts of feature/category combinations
         # ex. {'python': {'bad': 0, 'good': 6}, 'the': {'bad': 3, 'good': 3}}
         # where 'python' is a feature and 'bad' and 'good' are categories
@@ -246,7 +247,97 @@ class NaiveBayes(Classifier):
         return docprob * catprob
 
 
+class FisherClassifier(Classifier): ## DOUBLE CHECK CODE HERE
+    """Fisher showed that is the probabilities were independent and random,
+    the result of the fisherprob calculation fit a chi-squared distribution.
 
+    An item that doesn't belong in a category should have words of varying
+    feature probabilities for that category (appears random).
+
+    And item that does belong in a category should have many features with
+    high probabilities.
+
+    By feeding the result of the Fisher calculation to the inverse chi-square
+    function, you get the probability that a random set of probabilities would
+    return such a high number."""
+
+    def __init__(self, getfeatures):
+        Classifier.__init__(self, getfeatures) ## WHY???!?!
+        # create dictionary for storing classification thresholds
+        self.minimums = {}
+
+    def setminimum(self, cat, min):
+        """Sets minimum threshold for category classification."""
+        self.minimums[cat] = min
+
+    def getminimum(self, cat):
+        """Retrieve minimum threshold."""
+        if cat not in self.minimums:
+            return 0
+        return self.minimums[cat]
+
+    def classify(self, item, default=None):
+        """Calculate the probabilities for each category and returns the
+        best result that exceeds the specified minimum."""
+
+        # loop through looking for the best result
+        best = default
+        maxprob = 0.0
+        for c in self.categories():
+            p = self.fisherprob(item, c)
+            # check if it exceeds its threshold
+            if p > self.getminimum(c) and p > maxprob:
+                best = c
+                maxprob = p
+        return best
+
+    def cprob(self, f, cat):
+        """
+        Returns the probability that an item with the specified feature
+        belongs in the specified category, assuming there will be an equal no.
+        of items in each category.
+
+        Returns P(category | feature)
+
+        cprob = clf / (clf + nclf) = clf / freqsum
+        clf = P(feature | category) for this category
+        freqsum = Sum of P(feature | category) for all categories
+        """
+        # The frequency of this feature in this category
+        clf = self.fprob(f, cat)
+        if clf == 0:
+            return 0
+
+        # the frequency of this feature in all the categories
+        freqsum = sum([self.fprob(f, c) for c in self.categories()])
+
+        # probability = freq in this cat / overall frequency
+        p = clf / (freqsum)
+
+        return p
+
+    def fisherprob(self, item, cat):
+        """fisher probability"""
+        # multiply all the probabilities together
+        p = 1
+        features = self.getfeatures(item)
+        for f in features:
+            p *= (self.weightedprob(f, cat, self.cprob))
+
+        # take the natural log and multiply by -2
+        fscore = -2 * math.log(p)
+
+        # use the inverse chi2 function to get a probability
+        return self.invchi2(fscore, len(features) * 2)
+
+    def invchi2(self, chi, df):
+        """Inverse chi-square function """
+        m = chi / 2.0
+        chisum = term = math.exp(-m)
+        for i in range(1, df//2):
+            term *= m / i
+            chisum += term
+        return min(chisum, 1.0)
 
 
 
@@ -283,3 +374,29 @@ class NaiveBayes(Classifier):
 # for i in range(10): docclass.sampletrain(c1)
 # c1,classify('quick money')
 
+# FISHER test
+# reload(docclass)
+# c1 = docclass.FisherClassifier(docclass.getwords)
+# docclass.sampletrain(c1)
+# c1.cprob('quick', 'good')
+# c1.cprob('money', 'bad')
+# c1.weightedprob('money', 'bad', c1.cprob)
+
+# Fisher with fisherclassifier
+# reload(docclass)
+# c1 = docclass.FisherClassifier(docclass.getwords)
+# docclass.sampletrain(c1)
+# c1.cprob('quick', 'good')
+# c1.fisherprob('quick rabbit', 'good')
+# c1.fisherprob('quick rabbit', 'bad')
+
+# Fisher with thresholds
+# reload(docclass)
+# c1 = docclass.FisherClassifier(docclass.getwords)
+# docclass.sampletrain(c1)
+# c1.classify('quick rabbit')
+# c1.classify('quick money')
+# c1.setminimum('bad', 0.8)
+# c1.classify('quick money')
+# c1.setminimum('good', 0.4)
+# c1.classify('quick money')
