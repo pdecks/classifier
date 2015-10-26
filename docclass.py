@@ -205,6 +205,7 @@ class Classifier(object):
                 return default
             return best
 
+## SUBCLASSES ################################################################
 
 # Once you have the probabilities of a document in a category containing a
 # particular word, you need a way to combine the individual word probabilities
@@ -222,6 +223,10 @@ class Classifier(object):
 class NaiveBayes(Classifier):
     """Subclass of Classifier for calculating the entire document probability.
     """
+
+    def __init__(self, getfeatures, filename=None):
+        """Inherit Classifier __init__"""
+        return super(NaiveBayes, self).__init__(getfeatures, filename)
 
     def docprob(self, item, cat):
         """Extracts the features and returns an overall probability of a
@@ -260,11 +265,15 @@ class FisherClassifier(Classifier): ## DOUBLE CHECK CODE HERE
     By feeding the result of the Fisher calculation to the inverse chi-square
     function, you get the probability that a random set of probabilities would
     return such a high number."""
-
-    def __init__(self, getfeatures):
-        Classifier.__init__(self, getfeatures) ## WHY???!?!
-        # create dictionary for storing classification thresholds
+    def __init__(self, getfeatures, filename=None):
+        """Inherit Classifier __init__ and create threshold dict"""
+        super(FisherClassifier, self).__init__(getfeatures, filename)
         self.minimums = {}
+
+    # def __init__(self, getfeatures):
+    #     Classifier.__init__(self, getfeatures) ## WHY???!?!
+    #     # create dictionary for storing classification thresholds
+    #     self.minimums = {}
 
     def setminimum(self, cat, min):
         """Sets minimum threshold for category classification."""
@@ -397,6 +406,8 @@ class FisherClassifier(Classifier): ## DOUBLE CHECK CODE HERE
 # c1.classify('quick rabbit')
 # c1.classify('quick money')
 # c1.setminimum('bad', 0.8)
-# c1.classify('quick money')
+# c1.classify('quick money') 
+## NOTE: c1.fisherprob('quick money', 'bad') --> 0.701 < 0.8 
+## therefore classified as 'good'
 # c1.setminimum('good', 0.4)
 # c1.classify('quick money')
