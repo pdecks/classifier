@@ -8,6 +8,7 @@ from Programming Collective Intelligence, by Toby Segaran.
 
 import re
 import math
+import sqlite3
 
 
 def sampletrain(c1):
@@ -78,41 +79,97 @@ class Classifier(object):
     # then, for each feature dictionary, if category not yet in feature dict,
     # add category as value and set it to 0. THEN, for all cases, increment.
 
+    # def incf(self, f, cat):
+    #     """Increases the count of a feature/category pair."""
+    #     self.fc.setdefault(f,{})
+    #     self.fc[f].setdefault(cat, 0)
+    #     self.fc[f][cat] += 1
+
+
+    # def incc(self, cat):
+    #     """Increase the count of a document category (classification)."""
+    #     self.cc.setdefault(cat, 0)
+    #     self.cc[cat] += 1
+
+
+    # def fcount(self, f, cat):
+    #     """Returns a float of no. times a feature has appeared in a category."""
+    #     if f in self.fc and cat in self.fc[f]:
+    #         return float(self.fc[f][cat])
+    #     return 0.0
+
+
+    # def catcount(self, cat):
+    #     """Returns a float of no. times a category occurs as a classification."""
+    #     if cat in self.cc:
+    #         return float(self.cc[cat])
+    #     return 0
+
+
+    # def totalcount(self):
+    #     """Returns total number of all category (classification) occurrences."""
+    #     return sum(self.cc.values())
+
+
+    # def categories(self):
+    #     """Returns list of all categories (classifications)."""
+    #     return self.cc.keys()
+
+
+    ## CREATE HELPER METHODS: DATABASE VERSIONS ##
+
     def incf(self, f, cat):
         """Increases the count of a feature/category pair."""
-        self.fc.setdefault(f,{})
-        self.fc[f].setdefault(cat, 0)
-        self.fc[f][cat] += 1
-
-
+        count = self.fcount(f,cat)
+        # if feature doesn't exist, insert it into table
+        if count == 0:
+            self.con.execute("insert into fc values ('%s', '%s', 1)"
+                             % (f, cat))
+        else: # update value in table
+            self.con.execute(
+                "update fc set count=%d where feature='%s' and category='%s'"
+                % (count + 1, f, cat))
+    
     def incc(self, cat):
         """Increase the count of a document category (classification)."""
-        self.cc.setdefault(cat, 0)
-        self.cc[cat] += 1
-
+        count = self.catcount(cat)
+        if count == 0:
+            self.con.execute("insert into cc values ('%s', 1)" % (cat))
+        else:
+            self.con.execute("update cc set count=%d where category='%s'"
+                             % (count + 1, cat))
 
     def fcount(self, f, cat):
         """Returns a float of no. times a feature has appeared in a category."""
-        if f in self.fc and cat in self.fc[f]:
-            return float(self.fc[f][cat])
-        return 0.0
-
+        res = self.con.execute(
+            'select count from fc where feature="%s" and category="%s"'
+            % (f,cat)).fetchone()
+        if res == None:
+            return 0
+        else:
+            return float(res[0])
 
     def catcount(self, cat):
         """Returns a float of no. times a category occurs as a classification."""
-        if cat in self.cc:
-            return float(self.cc[cat])
-        return 0
-
+        res = self.con.execute('select count from cc where category="%s"'
+                               %(cat)).fetchone()
+        if res == None:
+            return 0
+        else:
+            return float(res[0])
 
     def totalcount(self):
         """Returns total number of all category (classification) occurrences."""
-        return sum(self.cc.values())
-
+        res = self.con.execute('select sum(count) from cc').fetchone()
+        if res == None:
+            return 0
+        else:
+            return res[0]
 
     def categories(self):
         """Returns list of all categories (classifications)."""
-        return self.cc.keys()
+        cur = self.con.execute('select category from cc')
+        return [d[0] for d in cur]
 
 
     ## TRAINING THE MODEL ##
@@ -130,6 +187,10 @@ class Classifier(object):
 
         # increment the count for this category
         self.incc(cat)
+
+        ## FOR PERSISTING IN DATABASE ##
+        if self.con:
+            self.con.commit()
 
 
     ## CALCULATING PROBABILITIES ##
@@ -204,6 +265,16 @@ class Classifier(object):
             if probs[cat] * self.getthreshold(best) > probs[best]:
                 return default
             return best
+
+
+    ## PERSISTING TRAINED CLASSIFIERS ##
+
+    def setdb(self, dbfile):
+        """Opens a database for this classifier and creates tables, if necessary."""
+        self.con = sqlite3.connect(dbfile)
+        self.con.execute('create table if not exists fc(feature, category, count)')
+        self.con.execute('create table if not exists cc(category, count)')
+
 
 ## SUBCLASSES ################################################################
 
