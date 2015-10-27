@@ -18,6 +18,8 @@ date: 10/26/2015
 
 import os
 import glob
+import re
+
 my_dir = '/Users/pdecks/hackbright/project/Yelp/pdecks-reviews/'
 
 def generate_filelist(my_dir):
@@ -28,7 +30,7 @@ def generate_filelist(my_dir):
         filelist.append(files)
     return filelist
 
-def generate_business_dict(filename):
+def generate_review_dict(filename):
     """Given a filename, make a dictionary entry"""
     review_dict = {}
 
@@ -40,66 +42,124 @@ def generate_business_dict(filename):
 
     # assign meaningful variable names
     rest_name = current_review[0]
-    rest_score = current_review[1]
+    rest_stars = current_review[1]
     review_date = current_review[2]
     review_text = current_review[3]
 
+    # reformat date to match Yelp JSON
+    review_date_month = review_date[:2]
+    review_date_day = review_date[2:4]
+    review_date_year = review_date[4:]
+    yelp_date = review_date_year + '-' + review_date_month + '-' + review_date_day
+
+    # create empty votes dictionary (not available in text files)
+    vote_dict = {'useful': 0, 'funny': 0, 'cool': 0}
+
     # assign values to dictionary keys
-    review_dict['name'] = rest_name
-    review_dict['score'] = int(rest_score)
-    review_dict['date'] = review_date
-    review_dict['review'] = review_text
+    review_dict = {'type': 'review',
+                   'business_id': rest_name,
+                   'user_id': 'greyhoundmama',
+                   'stars': rest_stars,
+                   'text': review_text,
+                   'date': yelp_date,
+                   'votes': vote_dict
+                   }
 
     review_file.close()
 
     return review_dict
 
+def generate_reviews_dict(filelist):
+    """Takes a list of files (reviews) and returns a list of reviews dictionaries."""
+    reviews_list = []
 
-def generate_review_dict(filelist):
-    """Takes a list of files (reviews) and returns a dictionary of reviews."""
-    my_reviews = {}
-
-    for business in filelist:
-        # make the dictionary entry for current business
-        business_dict = generate_business_dict(business)
+    for review in filelist:
+        # make the dictionary entry for current review
+        review_dict = generate_review_dict(review)
 
         # add to larger review dictionary
-        business_name = business_dict['name']
-        my_reviews[business_name] = business_dict
+        reviews_list.append(review_dict)
 
-    return my_reviews
+    return reviews_list
+
+# def define_review_features(reviews_list):
+#     splitter = re.compile('\\W*')
+#     f = {}
+
+#     # Extract the summary words
+#     summary_words = [s.lower() for s in splitter.split(review_dict['review'])]
+#     # Count uppercase words
+#     uc = 0
+#     # for i in range
 
 
-def classify_reviews(review_dict, classifier):
-    """Takes a dictionary of reviews and classifies the entries."""
-    print "In classify_reviews ..."
-    for entry in review_dict:
+def classify_reviews(review_list, classifier):
+    """Takes a list of review dictionaries and classifies the entries."""
+
+    for entry in review_list:
 
         print '-' * 60
-        print "Business name: %s" % review_dict[entry]['name']
-        print "Score: %s" % review_dict[entry]['score']
-        print "Review date: %s" % review_dict[entry]['date']
-        print "Review: %s" % review_dict[entry]['review']
+        print "Business name: %s" % entry['business_id']
+        print "User: %s" % entry['user_id']
+        print "Stars: %s" % entry['stars']
+        print "Review date: %s" % entry['date']
+        print "Review: %s" % entry['text']
+        print "Votes: useful %s, funny %s, cool %s" % (entry['votes']['useful'],
+                                                       entry['votes']['funny'],
+                                                       entry['votes']['cool']
+                                                       )
         print '-' * 60
 
-        # combine all the text to create one item for the classifier
-        fulltext = '%s\n%s\n%s\n%s' % (review_dict[entry]['name'],
-                                       review_dict[entry]['score'],
-                                       review_dict[entry]['date'],
-                                       review_dict[entry]['review'])
-        # print fulltext
-
+        # text to be classified
+        fulltext = entry['text']
+ 
         # print the best guess at the current category
         print 'Guess: ' + str(classifier.classify(fulltext))
 
         # Ask the user to specify the correct category and train on that
+        print "Rate for gluten-free safety as one of the following:"
+        print "'Excellent', 'Good', 'Neutral', 'Limited', 'Shady', 'Bad'"
         user_cat = raw_input('Enter category: ')
-        classifier.train(fulltext, user_cat)
+
+        # validate user entry
+        classifications = ['excellent', 'good', 'neutral', 'limited', 'shady', 'bad']
+        while user_cat.lower() not in classifications:
+            print "Rate for gluten-free safety as one of the following:"
+            print "'Excellent', 'Good', 'Neutral', 'Limited', 'Shady', 'Bad'"
+            user_cat = raw_input('Enter category: ')
+
+        classifier.train(fulltext, user_cat.lower())
+
+# def classify_reviews(review_dict, classifier):
+#     """Takes a dictionary of reviews and classifies the entries."""
+#     print "In classify_reviews ..."
+#     for entry in review_dict:
+
+#         print '-' * 60
+#         print "Business name: %s" % review_dict[entry]['name']
+#         print "Score: %s" % review_dict[entry]['score']
+#         print "Review date: %s" % review_dict[entry]['date']
+#         print "Review: %s" % review_dict[entry]['review']
+#         print '-' * 60
+
+#         # combine all the text to create one item for the classifier
+#         fulltext = '%s\n%s\n%s\n%s' % (review_dict[entry]['name'],
+#                                        review_dict[entry]['score'],
+#                                        review_dict[entry]['date'],
+#                                        review_dict[entry]['review'])
+#         # print fulltext
+
+#         # print the best guess at the current category
+#         print 'Guess: ' + str(classifier.classify(fulltext))
+
+#         # Ask the user to specify the correct category and train on that
+#         user_cat = raw_input('Enter category: ')
+#         classifier.train(fulltext, user_cat)
 
 
 if __name__ == "__main__":
     filelist = generate_filelist(my_dir)
-    my_reviews = generate_review_dict(filelist)
+    my_reviews = generate_reviews_dict(filelist)
     print '\n\n'
     print "RESTAURANTS REVIEWED"
     for restaurant in my_reviews.keys():
@@ -118,7 +178,7 @@ if __name__ == "__main__":
 # c1.setdb('pdecks_reviews.db')
 # my_dir = '/Users/pdecks/hackbright/project/Yelp/pdecks-reviews/'
 # filelist = rf.generate_filelist(my_dir)
-# my_reviews = rf.generate_review_dict(filelist)
+# my_reviews = rf.generate_reviews_dict(filelist)
 # rf.classify_reviews(my_reviews, c1)
 
 
