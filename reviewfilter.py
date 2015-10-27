@@ -4,6 +4,14 @@ then asks what the correct category should have been. When run with a new
 classifier, the guesses will at first be random, but they should improve
 over time.
 
+>>> import docclass
+>>> import reviewfilter as rf
+>>> c1 = docclass.FisherClassifier(docclass.getwords)
+>>> c1.setdb('pdecks_reviews.db')
+>>> my_dir = '/Users/pdecks/hackbright/project/Yelp/pdecks-reviews/'
+>>> filelist = rf.generate_filelist(my_dir)
+>>> my_reviews = rf.generate_review_dict(filelist)
+
 by: Patricia Decker, modified from Programming Collective Intelligence
 date: 10/26/2015
 """
@@ -62,9 +70,31 @@ def generate_review_dict(filelist):
     return my_reviews
 
 
-# def read(data, classifier):
-#     """Opens data, structured as dictionary, and classifies each entry."""
-#     for entry in data['entries']:
+def classify_reviews(review_dict, classifier):
+    """Takes a dictionary of reviews and classifies the entries."""
+    print "In classify_reviews ..."
+    for entry in review_dict:
+
+        print '-' * 60
+        print "Business name: %s" % review_dict[entry]['name']
+        print "Score: %s" % review_dict[entry]['score']
+        print "Review date: %s" % review_dict[entry]['date']
+        print "Review: %s" % review_dict[entry]['review']
+        print '-' * 60
+
+        # combine all the text to create one item for the classifier
+        fulltext = '%s\n%s\n%s\n%s' % (review_dict[entry]['name'],
+                                       review_dict[entry]['score'],
+                                       review_dict[entry]['date'],
+                                       review_dict[entry]['review'])
+        # print fulltext
+
+        # print the best guess at the current category
+        print 'Guess: ' + str(classifier.classify(fulltext))
+
+        # Ask the user to specify the correct category and train on that
+        user_cat = raw_input('Enter category: ')
+        classifier.train(fulltext, user_cat)
 
 
 if __name__ == "__main__":
@@ -81,3 +111,19 @@ if __name__ == "__main__":
         print "%s" % review
         print my_reviews[review]
         print '-'*60
+
+# import docclass
+# import reviewfilter as rf
+# c1 = docclass.FisherClassifier(docclass.getwords)
+# c1.setdb('pdecks_reviews.db')
+# my_dir = '/Users/pdecks/hackbright/project/Yelp/pdecks-reviews/'
+# filelist = rf.generate_filelist(my_dir)
+# my_reviews = rf.generate_review_dict(filelist)
+# rf.classify_reviews(my_reviews, c1)
+
+
+## DEBUGGING
+
+# print "This is entry['name']: %s" % review_dict[entry]['name']
+# print "This is entry['score']: %s" % review_dict[entry]['score']
+# print "This is entry['date']: %s" % review_dict[entry]['date']
