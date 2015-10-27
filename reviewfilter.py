@@ -82,15 +82,44 @@ def generate_reviews_dict(filelist):
 
     return reviews_list
 
-# def define_review_features(reviews_list):
-#     splitter = re.compile('\\W*')
-#     f = {}
+# TODO: add check for word already in dictionary
+def define_entry_features(entry_text):
 
-#     # Extract the summary words
-#     summary_words = [s.lower() for s in splitter.split(review_dict['review'])]
-#     # Count uppercase words
-#     uc = 0
-#     # for i in range
+    splitter = re.compile('\\W*')
+    # print "This is splitter: %s" % splitter
+    # print "This is entry_text:\n%s" % entry_text
+    f = {}
+
+    # Extract the summary words
+    # summary_words = []
+    # for s in splitter.split(entry_text):
+    #     if len(s) > 2 and len(2) < 20:
+    #         summary_words.append(s.lower())
+    summary_words = [s.lower() for s in splitter.split(entry_text)
+                     if len(s) > 2 and len(s) < 20]
+
+    # Count uppercase words
+    uc = 0
+    for i in range(len(summary_words)):
+        w = summary_words[i]
+        f[w] = 1
+        if w.isupper():
+            uc += 1
+
+        # get word pairs in summary as features
+        if i <= len(summary_words)-2:
+            if i == len(summary_words)-2:
+                two_words = ' '.join(summary_words[i:])
+            else:
+                two_words = ' '.join(summary_words[i:i+2])
+            f[two_words] = 1
+
+    # UPPERCASE is a virtual word flagging too much shouting
+    if float(uc) / len(summary_words) > 0.3:
+        f['UPPERCASE'] = 1
+
+    return f
+
 
 
 def classify_reviews(review_list, classifier):
@@ -112,7 +141,7 @@ def classify_reviews(review_list, classifier):
 
         # text to be classified
         fulltext = entry['text']
- 
+
         # print the best guess at the current category
         print 'Guess: ' + str(classifier.classify(fulltext))
 
@@ -130,6 +159,7 @@ def classify_reviews(review_list, classifier):
 
         classifier.train(fulltext, user_cat.lower())
 
+# ALT DATA STRUCTURE USING DICT OF DICT ##
 # def classify_reviews(review_dict, classifier):
 #     """Takes a dictionary of reviews and classifies the entries."""
 #     print "In classify_reviews ..."

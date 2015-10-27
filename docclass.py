@@ -44,6 +44,7 @@ def getwords(doc):
              if len(s) > 2 and len(s) < 20]
 
     # return the unique set of words only
+    # TODO: weight words that appear multiple times?
     return dict([(w, 1) for w in words])
 
 
