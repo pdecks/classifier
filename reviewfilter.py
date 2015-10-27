@@ -16,6 +16,10 @@ by: Patricia Decker, modified from Programming Collective Intelligence
 date: 10/26/2015
 """
 
+# TODO: CONSIDER NEURAL NETWORK? can capture interdepence of features but
+# requires significantly more computing power and offers less clarity into
+# how each feature contributes to the final score
+
 import os
 import glob
 import re
@@ -84,7 +88,13 @@ def generate_reviews_dict(filelist):
 
 # TODO: add check for word already in dictionary
 def define_entry_features(entry_text):
+    """Feature extractor.
 
+    Takes review text (entry text) and splits it on any sequence of non-alphanumeric
+    characters. Here, the resulting words and word pairs are the document features.
+
+    Also flags a review as having too much shouting based on uppercase words.
+    """
     splitter = re.compile('\\W*')
     # print "This is splitter: %s" % splitter
     # print "This is entry_text:\n%s" % entry_text
